@@ -1,6 +1,7 @@
 package schemahcl
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -266,4 +267,60 @@ table "user" {
 	typ, err = attr.String()
 	require.NoError(t, err)
 	require.EqualValues(t, "text", typ)
+}
+
+func TestExtension(t *testing.T) {
+	h := `version = 1
+
+schema "schema" {
+}
+
+table "table" {
+	column "id" {
+		type = "int"
+	}
+}
+
+server "xyz" {
+	name = "123"
+}
+`
+	decoded := &schemaspec.File{}
+
+	err := DecodeFile([]byte(h), "file.hcl", decoded)
+	require.NoError(t, err)
+
+	v := versionExt{}
+	err = decoded.As(&v)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, v.Version)
+
+	s := serverExt{}
+	err = decoded.Children[0].As(&s)
+	fmt.Println(s)
+}
+
+type versionExt struct {
+	Version int `spec:"version"`
+}
+
+type serverExt struct {
+	Label string `spec:"name"`
+}
+
+
+func (*serverExt) Type() string {
+	return "server"
+}
+
+func (v *serverExt) Name() string {
+	return v.Label
+}
+
+func (*versionExt) Type() string {
+	return ""
+}
+
+func (*versionExt) Name() string {
+	return ""
 }
